@@ -1,0 +1,50 @@
+version: '3'
+ 
+services:
+  web:
+    ports: #ポートを公開する(ホスト:コンテナ)
+      # - '8000:80' #8000でアクセスされたら、80を使用する
+      - '8080:8080'
+    build: ./web/ #Dockerfileが存在するディレクトリの相対パス
+    volumes: #コンテナと共有したいパスを指定
+      - ./web/httpd.conf:/usr/local/apache2/conf/httpd.conf #httpd.confを上書きする ★コメントアウトしておく
+      - ./logs:/usr/local/apache2/logs/httpd/ # コンテナに入らず、apacheのlogを見るためマウントしとく ★コメントアウトしておく
+    depends_on: # Service同士の依存関係を指定
+      - ui #`docker-compose run`した際にapacheより前にuiコンテナが実行される
+    links: #他のコンテナに接続する(コンテナのhostsに追加される)
+      - ui
+  ui:
+    build: 
+      context: ./
+      dockerfile: ./ui/Dockerfile
+    volumes:
+        - ~/work/nuxt_ssr/ui:/app
+    depends_on:
+      - api
+    links:
+      - api
+  api:
+    build:
+      context: ./
+      dockerfile: ./api/Dockerfile
+    ports:
+      - '8000:8000'
+    volumes:
+      - ~/work/nuxt_ssr/api:/var/www/html
+    depends_on:
+      - db
+    links:
+      - db
+  db:
+    image: mysql:8
+    volumes:
+      - ./db-store:/var/lib/mysql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+      - ./logs:/var/log/mysql
+    ports:
+      - "4306:3306"
+    environment:
+      - MYSQL_DATABASE=dev
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=password
+      - MYSQL_ROOT_PASSWORD=password
